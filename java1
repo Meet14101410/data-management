@@ -1,0 +1,59 @@
+package com.datamanagement;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class UserManager {
+    private static final String DB_URL = "jdbc:mysql://localhost/datamanagement_db";
+    private static final String USER = "root";
+    private static final String PASS = "";
+
+    public void addUser(User user) {
+        String sql = "INSERT INTO users (name, email) VALUES (?, ?)";
+        try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASS);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, user.getName());
+            pstmt.setString(2, user.getEmail());
+            pstmt.executeUpdate();
+            System.out.println("User added successfully: " + user.getName());
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public List<User> getAllUsers() {
+        List<User> users = new ArrayList<>();
+        String sql = "SELECT id, name, email FROM users";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, USER, PASS);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                users.add(new User(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("email")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return users;
+    }
+
+    public static void main(String[] args) {
+        UserManager manager = new UserManager();
+
+        // Add a new user
+        User newUser = new User(0, "Alice Johnson", "alice@example.com");
+        manager.addUser(newUser);
+
+        // Retrieve and print all users
+        System.out.println("--- All Users ---");
+        manager.getAllUsers().forEach(System.out::println);
+    }
+}
