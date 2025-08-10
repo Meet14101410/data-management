@@ -1,0 +1,59 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Fcntl qw(:flock);
+
+# The file to be used as our data store
+my $data_file = 'records.csv';
+
+# Function to add a new record
+sub add_record {
+    my ($name, $email) = @_;
+
+    open my $fh, '>>', $data_file or die "Cannot open file '$data_file': $!";
+
+    # Use flock to prevent race conditions during write
+    flock $fh, LOCK_EX or die "Cannot get exclusive lock on '$data_file': $!";
+    
+    # Simple ID generation based on file size, not robust for production
+    my $id = -s $data_file ? (split(',', (scalar <$fh>)[-1]))[0] + 1 : 1;
+    seek $fh, 0, 2; # Go to the end of the file
+
+    # Append the new record
+    print $fh "$id,$name,$email\n";
+    print "Added record for $name.\n";
+
+    flock $fh, LOCK_UN;
+    close $fh;
+}
+
+# Function to display all records
+sub display_records {
+    print "--- Existing Records ---\n";
+    
+    open my $fh, '<', $data_file or die "Cannot open file '$data_file': $!";
+
+    # Use flock to prevent reading an incomplete file
+    flock $fh, LOCK_SH or die "Cannot get shared lock on '$data_file': $!";
+    
+    while (my $line = <$fh>) {
+        chomp $line;
+        my ($id, $name, $email) = split ',', $line;
+        print "ID: $id, Name: $name, Email: $email\n";
+    }
+
+    flock $fh, LOCK_UN;
+    close $fh;
+}
+
+# Main logic of the script
+if (@ARGV) {
+    if ($ARGV[0] eq 'add' && @ARGV == 3) {
+        add_record($ARGV[1], $ARGV[2]);
+    } else {
+        print "Usage: perl data_manager.pl add <name> <email>\n";
+    }
+} else {
+    display_records();
+}
